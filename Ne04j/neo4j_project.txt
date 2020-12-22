@@ -1,0 +1,46 @@
+
+// delete existing graph
+match (n) detach delete n;
+
+// verify you have no nodes/relationships in your graph
+match (n) return n;
+
+LOAD CSV WITH HEADERS FROM "http://localhost:11001/project-1bcd72da-abec-401b-b2d5-ca7c0966b7ba/home_hub_transactions.csv" AS line
+
+MERGE (c:Customer{Name:line.customer_name})
+MERGE (spn:ServiceProvider {Name:line.service_provider_name, Zip1:line.service_provider_zip})
+MERGE (scs:SuperServices {Name:line.service_category_super})
+MERGE (scss:SubServices {Name:line.service_category_sub, rate:line.service_rate})
+MERGE (ts:Transaction {Name:line.transaction_status, amount:line.service_total_amount, date:line.booking_date})
+
+MERGE (spn) -[:provides {dist:line.service_rate}]-> (scs)
+MERGE (scs) -[:has {dist:line.service_rate}]-> (scss)
+MERGE (spn) -[:has_subService]-> (scss)
+MERGE (scss) -[:has_transaction {dist:line.service_total_amount}]-> (ts)
+MERGE (c) -[:place_order]-> (scss)
+
+//WITH spn,scs,line
+//CALL apoc.create.relationship(spn, line.service_rate, {}, scs) YIELD rel
+//RETURN rel
+
+return *
+-----------------------------------------------------------------
+
+LOAD CSV WITH HEADERS FROM "http://localhost:11001/project-1bcd72da-abec-401b-b2d5-ca7c0966b7ba/home_hub_transactions.csv" AS line
+
+
+MATCH (c:Customer{Name:line.customer_name})
+MATCH (spn:ServiceProvider {Name:line.service_provider_name, Zip1:line.service_provider_zip})
+MATCH (scs:SuperServices {Name:line.service_category_super})
+MATCH (scss:SubServices {Name:line.service_category_sub, rate:line.service_rate})
+MATCH (ts:Transaction {Name:line.transaction_status, amount:line.service_total_amount, date:line.booking_date})
+
+CALL apoc.create.relationship(spn, line.service_rate, NULL, scs) YIELD rel as a
+CALL apoc.create.relationship(scs, line.service_rate, NULL, scss) YIELD rel as b
+CALL apoc.create.relationship(spn, line.service_rate, NULL, scs) YIELD rel as c
+CALL apoc.create.relationship(scss, line.service_rate, NULL, scs) YIELD rel as d
+CALL apoc.create.relationship(c, line.service_total_amount, NULL, ts) YIELD rel as e
+
+RETURN *
+
+------------------------------------------------------------------------
